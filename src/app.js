@@ -15,4 +15,13 @@ app.use(express.urlencoded({extended:true})) // EXTENDED True is givien to allow
 app.use(express.static("public"))  // to serve static images, CSS files, and JavaScript files in a directory named public
 app.use(cookieParser())
 
+
+//Import Routes...
+
+import userRouter from './routes/users.routes.js'
+
+  
+//routes declaration
+app.use("/api/v1/users",userRouter)// lokies like http:localhost:3000/api/v1/users/register
+
 export {app}
