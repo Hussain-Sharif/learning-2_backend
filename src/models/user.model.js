@@ -52,7 +52,7 @@ const userSchema=new Schema({
 // Here using async as it takes longer time s  for cryptographic Computations
 userSchema.pre("save",async function(next){
     if(!this.isModified("password")) return next() // password here is the field create while creating the Schema
-    this.password=bcrypt.hash(this.password,10)
+    this.password=await bcrypt.hash(this.password,10)
     next()
 })
 

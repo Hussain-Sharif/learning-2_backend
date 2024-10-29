@@ -19,6 +19,7 @@ dotenv.config({
 
 connectDB() // In general it returns Promise to handle that we use .then and .catch
 .then(()=>{
+    // Sometimes DB is connected but server app not able to listen so it thrwos error
     app.on("error",(error)=>{
         console.log("Server App Listen ERROR:",error)
         throw error
@@ -28,7 +29,7 @@ connectDB() // In general it returns Promise to handle that we use .then and .ca
    })
 })
 .catch((error)=>{
-    console.log(`MongoDB Connection Failed: ${error}`)
+    console.log(`MongoDB Connection with express is Failed: ${error}`)
 })
 
 
