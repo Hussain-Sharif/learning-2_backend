@@ -1,6 +1,7 @@
 import {Router} from 'express'
-import  {registerUser}  from '../controllers/users.controllers.js'
+import  {loginUser, logoutUser, registerUser,refreshAccessToken}  from '../controllers/users.controllers.js'
 import { upload } from '../middlewares/multer.js'
+import { verifyJWT } from '../middlewares/auth.middleware.js'
 
 const userRouter=Router()
 
@@ -10,7 +11,13 @@ userRouter.route("/register").post(upload.fields([{ // here it's like a middlewa
 },{
     name:"coverImage",
     maxCount:1
-}]), registerUser)
+}]), registerUser) 
 
+userRouter.route("/login").post(loginUser)
+
+
+//Secured Routes
+userRouter.route("/logout").post(verifyJWT,logoutUser)
+userRouter.route("/refresh-token").post(refreshAccessToken)
 
 export default userRouter
