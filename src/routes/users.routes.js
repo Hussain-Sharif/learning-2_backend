@@ -1,7 +1,8 @@
 import {Router} from 'express'
-import  {loginUser, logoutUser, registerUser,refreshAccessToken}  from '../controllers/users.controllers.js'
+import  {loginUser, logoutUser, registerUser,refreshAccessToken,userAvatarUpdate,userCoverImageUpdate}  from '../controllers/users.controllers.js'
 import { upload } from '../middlewares/multer.js'
 import { verifyJWT } from '../middlewares/auth.middleware.js'
+import multer from 'multer'
 
 const userRouter=Router()
 
@@ -14,10 +15,12 @@ userRouter.route("/register").post(upload.fields([{ // here it's like a middlewa
 }]), registerUser) 
 
 userRouter.route("/login").post(loginUser)
+userRouter.route("/user-avatar-update").patch(upload.single("avatar"),verifyJWT,userAvatarUpdate)
+userRouter.route("/user-cover-image-update").patch(upload.single("coverImage"),verifyJWT,userCoverImageUpdate)
 
 
 //Secured Routes
 userRouter.route("/logout").post(verifyJWT,logoutUser)
-userRouter.route("/refresh-token").post(refreshAccessToken)
+userRouter.route("/refresh-token").post(refreshAccessToken) // this endpoint is hitted when the access token expires using the refresh token stored in cookie's of frontend and we call this endpoint to get a new access token
 
 export default userRouter

@@ -2,9 +2,17 @@ import asyncHandler from "../utils/asyncHandler.js"
 import {ApiError} from "../utils/ApiError.js"
 import { emailValidator,passwordValidator } from "../utils/validation.js"
 import {User} from '../models/user.model.js'
-import uploadOnCloudinary from '../utils/cloudinary.js'
+import {uploadOnCloudinary,deleteOnCloudinary} from '../utils/cloudinary.js'
 import {ApiResponse} from '../utils/ApiResponse.js'
 import jwt from "jsonwebtoken"
+
+
+const getPublicIdFromCurrentUrl=(url)=>{
+    const splitUrl=url.split("/")
+    const publicId=splitUrl[splitUrl.length-1].split(".")[0]
+    console.log("publicId: ",publicId)
+    return publicId
+}
 
 const generateAccessAndRefreshTokens = async (userId)=>{
     try {
@@ -233,4 +241,121 @@ const refreshAccessToken=asyncHandler(async(req,res)=>{
     
 })
 
-export  {registerUser,loginUser,logoutUser,refreshAccessToken}
+const userAvatarUpdate=asyncHandler(async(req,res)=>{
+    
+    const newAvatarPath=req.file?.path //here we are requesting with only one file which is avatar
+
+    if(!newAvatarPath){ //If image is not able to allocate file creation in code base means avatar is not send as request. 
+        throw new ApiError(400,"Avatar is required")
+    }
+    const user=req.user;
+
+    const holdCurrentAvatarUrl=user.avatar;
+
+    const newAvatarCloudinaryUploaded=await uploadOnCloudinary(newAvatarPath,"avatar")
+
+    if(!newAvatarCloudinaryUploaded){
+        throw new ApiError(500,"Something went wrong while uploading NEW avatar")
+    }
+
+    // Now after all error's are handled we can update the avatar
+     const publicId=getPublicIdFromCurrentUrl(holdCurrentAvatarUrl)
+    const resultObj=await deleteOnCloudinary(publicId)
+
+    console.log("resultObj for Old Avatar image deletion: ",resultObj)
+    if(resultObj.result!=="ok"){
+        throw new ApiError(500,"Something went wrong while deleting OLD avatar")
+    }
+
+    const updatedUserDoc=await User.findByIdAndUpdate(user._id,{avatar:newAvatarCloudinaryUploaded.url},{new:true}).select("-password -refreshToken")
+    
+    return res.status(200).json(
+        new ApiResponse(200,updatedUserDoc,"User Avatar Updated Successfully")
+    )
+})
+
+const userCoverImageUpdate=asyncHandler(async(req,res)=>{
+    
+    const newCoverImagePath=req.file?.path //here we are requesting with only one file which is avatar
+
+    if(!newCoverImagePath){ //If image is not able to allocate file creation in code base means avatar is not send as request. 
+        throw new ApiError(400,"Cover Image is required")
+    }
+    const user=req.user;
+    const holdCurrentCoverImageUrl=user.coverImage;
+
+    const newCoverImageCloudinaryUploaded=await uploadOnCloudinary(newCoverImagePath,"avatar")
+
+    if(!newCoverImageCloudinaryUploaded){
+        throw new ApiError(500,"Something went wrong while uploading NEW Cover Image")
+    }
+
+
+    const publicId=getPublicIdFromCurrentUrl(holdCurrentCoverImageUrl) // Cloudinary will accept even it is empty string means no image URL is present
+    const resultObj=await deleteOnCloudinary(publicId)
+
+    console.log("resultObj for Old Cover Image Deletion: ",resultObj)
+    if(resultObj.result!=="ok"){
+        throw new ApiError(500,"Something went wrong while deleting OLD Cover Image")
+    }
+
+    const updatedUserDoc=await User.findByIdAndUpdate(user._id,{coverImage:newCoverImageCloudinaryUploaded.url},{new:true}).select("-password -refreshToken")
+
+     
+    return res.status(200).json(
+        new ApiResponse(200,updatedUserDoc,"User Cover Image Updated Successfully")
+    )
+})
+
+const currentUserChangePassword=asyncHandler(async(req,res)=>{
+    const {currentPassword,newPassword}=req.body
+    // For confirm password we can validate in frontend itself
+
+    const user =await User.findById(req.user._id)
+    if(await user.ispasswordCorrect(currentPassword)){
+        throw new ApiError(400,"Current Password is incorrect")
+    }
+
+    user.password=newPassword  // this will SET but NOT SAVE the password field in DB
+    // to save it
+    await user.save({validateBeforeSave:false}) // everytime we save() need password to validate so to avoid validation we use the this property as "false"
+
+    return res.status(200).json(
+        new ApiResponse(200,{},`Password Changed Successfully`)
+    )
+})
+
+const getCurrentUser=asyncHandler(async(req,res)=>{
+    // const user =await User.findById(req.user._id) or the below this
+    const user=req.user; // as we pass this to this route request along the middleware "auth" we attach the req.user to the request by validating the access Token
+    return res.status(200).json(new ApiResponse(200,user,"User Found"));
+})
+
+const userUpdateDetails=asyncHandler(async(req,res)=>{
+    const {fullname,email}=req.body
+
+    if(!fullname || !email){
+        throw new ApiError(400,"fullname and email are required")
+    }   
+    const user=await User.findByIdAndUpdate(req.user._id,{
+        $set:{
+            fullname,
+            email
+        }
+    },{
+        new:true // by this we get the updated user document helps in returning the response
+    }).select("-password -refreshToken");
+
+    // To avoid Database Calls then:
+    // don't use the below code
+    // const updatedUserDoc=await User.findById(user._id).select("-password -refreshToken") 
+
+    return res.status(200).json(
+        new ApiResponse(200,user,"User Updated Successfully")
+    )
+})
+
+
+
+export  {
+    registerUser,loginUser,logoutUser,refreshAccessToken,currentUserChangePassword,getCurrentUser,userUpdateDetails,userAvatarUpdate,userCoverImageUpdate}

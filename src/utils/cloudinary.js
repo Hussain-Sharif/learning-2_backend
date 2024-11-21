@@ -12,7 +12,7 @@ import fs from 'fs'
 const uploadOnCloudinary=async (localFilePath)=> {
     try {
         if(!localFilePath) return null
-        const uploadedResponse=await cloudinary.uploader.upload(localFilePath,{resource_type:"auto"})
+        const uploadedResponse=await cloudinary.uploader.upload(localFilePath,{resource_type:"auto"}) // here we can specify the public Id or else it will be auto generated
         console.log("File Uploaded Successfully in Cloudinary","& File URL",uploadedResponse.url)
         fs.unlinkSync(localFilePath)
         console.log("Now after the image is being uploaded in cloudinary File in local is removed")
@@ -23,11 +23,29 @@ const uploadOnCloudinary=async (localFilePath)=> {
     }
 }
 
+const deleteOnCloudinary=async (publicId)=>{
+    try {
+        if(!publicId) return null
+        const deletedResponse=await cloudinary.uploader.destroy(publicId,(error, result) => {
+            if (error) {
+                throw new ApiError(
+                    500,
+                    "existing file could not be deleted from cloudinary"
+                );
+            } 
+        })
+        console.log("File Deleted Successfully in Cloudinary")
+        return deletedResponse
+    } catch (error) {
+        return null
+    }
+}
 
 
 
 
-export default uploadOnCloudinary
+
+export  {uploadOnCloudinary,deleteOnCloudinary}
 
 
 // Below WAS PROVIDED BY CLOUDINARY 
