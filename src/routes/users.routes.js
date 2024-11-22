@@ -1,5 +1,5 @@
 import {Router} from 'express'
-import  {loginUser, logoutUser, registerUser,refreshAccessToken,userAvatarUpdate,userCoverImageUpdate}  from '../controllers/users.controllers.js'
+import  {loginUser, logoutUser, registerUser,refreshAccessToken,getCurrentUser,userUpdateDetails,currentUserChangePassword,userAvatarUpdate,userCoverImageUpdate}  from '../controllers/users.controllers.js'
 import { upload } from '../middlewares/multer.js'
 import { verifyJWT } from '../middlewares/auth.middleware.js'
 import multer from 'multer'
@@ -15,8 +15,12 @@ userRouter.route("/register").post(upload.fields([{ // here it's like a middlewa
 }]), registerUser) 
 
 userRouter.route("/login").post(loginUser)
+userRouter.route("/change-password").patch(verifyJWT,currentUserChangePassword);
+userRouter.route("/update-user").patch(verifyJWT,userUpdateDetails);
+userRouter.route("/get-current-user").get(verifyJWT,getCurrentUser);
 userRouter.route("/user-avatar-update").patch(upload.single("avatar"),verifyJWT,userAvatarUpdate)
 userRouter.route("/user-cover-image-update").patch(upload.single("coverImage"),verifyJWT,userCoverImageUpdate)
+
 
 
 //Secured Routes

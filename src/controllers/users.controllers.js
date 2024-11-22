@@ -310,9 +310,16 @@ const userCoverImageUpdate=asyncHandler(async(req,res)=>{
 const currentUserChangePassword=asyncHandler(async(req,res)=>{
     const {currentPassword,newPassword}=req.body
     // For confirm password we can validate in frontend itself
+    console.log(`currentPassword:${currentPassword}`)
+    console.log(`newPassword:${newPassword}`)
+
+    if(currentPassword===newPassword){
+        throw new ApiError(400,"New Password can not be same as Current Password")
+    }
 
     const user =await User.findById(req.user._id)
-    if(await user.ispasswordCorrect(currentPassword)){
+    const isTrueUserPassword=await user.ispasswordCorrect(currentPassword)
+    if(!isTrueUserPassword){
         throw new ApiError(400,"Current Password is incorrect")
     }
 
@@ -328,7 +335,8 @@ const currentUserChangePassword=asyncHandler(async(req,res)=>{
 const getCurrentUser=asyncHandler(async(req,res)=>{
     // const user =await User.findById(req.user._id) or the below this
     const user=req.user; // as we pass this to this route request along the middleware "auth" we attach the req.user to the request by validating the access Token
-    return res.status(200).json(new ApiResponse(200,user,"User Found"));
+    const actualSendingCurrentUserData=await User.findById(user._id).select("-password -refreshToken");
+    return res.status(200).json(new ApiResponse(200,actualSendingCurrentUserData,"User Found"));
 })
 
 const userUpdateDetails=asyncHandler(async(req,res)=>{
@@ -356,6 +364,85 @@ const userUpdateDetails=asyncHandler(async(req,res)=>{
 })
 
 
+const getUserChannelProfile=asyncHandler(async(req,res)=>{
+    const {username}=req.params;
+
+    if(!username?.trim()){
+        throw new ApiError(400,"username is required")
+    }
+
+    // The result of the aggregation is always a Array
+    const channel=await User.aggregate([
+        {$match:{_id:new mongoose.Types.ObjectId(req.user._id)}},
+        {$match:{username:username?.toLowerCase()}},
+       { // To join the models based on the primary and foreign keys 
+        $lookup: {
+            from:"subscriptions", // Here it is where the name of the model is plurar and lowercase
+            localField:"_id", // here it is the user id of current model => "User" model
+            foreignField:"channel", // here it is the channel field of subscriptions(Subscription) model
+            as:"subscribers"
+       }
+    },
+       { // To join the models based on the primary and foreign keys 
+        $lookup: {
+            from:"subscriptions", // Here it is where the name of the model is plurar and lowercase
+            localField:"_id", // here it is the user id of current model => "User" model
+            foreignField:"subscriber", // here it is the subscriber field of subscriptions(Subscription) model
+            as:"subscribedTo"
+       }
+    },{
+        $addFields: {
+            subscribersCount:{
+                $size:"$subscribers" // Count of Subcribers where User as a Channel
+            },
+            channelsSubscribedToCount:{
+                $size:"$subscribedTo" // COunt of Channel where this current User is subscribed To
+            },
+            isSubscribed:{
+                $cond:{
+                    if:{$in : [req.user?._id,"$subscribedTo.subscriber"]}, // here $in can used for both object and array
+                    then:true,
+                    else:false
+                }
+            }
+        }
+    },{
+        $project: { // Projecting what we actually want to show in the response
+            fullname:1,// we want to show only one value for every field
+            username:1,
+            avatar:1,
+            coverImage:1,
+            email:1,
+            createdAt:1,
+            subscribersCount:1,
+            channelsSubscribedToCount:1,
+            isSubscribed:1
+        }
+    }
+])
+
+    // To know what datatype aggregate returns
+    console.log(channel) // it's Array of Objects mostly
+
+    if(!channel?.length){
+        throw new ApiError(404,"Channel Doesn't Exist")
+    } 
+
+    
+    return res.
+    status(200).
+    json(new ApiResponse(200,channel[0],"Channel is Found Successfully"))
+})
 
 export  {
-    registerUser,loginUser,logoutUser,refreshAccessToken,currentUserChangePassword,getCurrentUser,userUpdateDetails,userAvatarUpdate,userCoverImageUpdate}
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    currentUserChangePassword,
+    getCurrentUser,
+    userUpdateDetails,
+    userAvatarUpdate,
+    userCoverImageUpdate,
+    getUserChannelProfile
+}
